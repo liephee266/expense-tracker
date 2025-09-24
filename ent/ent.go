@@ -5,7 +5,10 @@ package ent
 import (
 	"context"
 	"errors"
+	"expense-tracker/ent/budget"
+	"expense-tracker/ent/category"
 	"expense-tracker/ent/expense"
+	"expense-tracker/ent/user"
 	"fmt"
 	"reflect"
 	"sync"
@@ -73,7 +76,10 @@ var (
 func checkColumn(t, c string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
-			expense.Table: expense.ValidColumn,
+			budget.Table:   budget.ValidColumn,
+			category.Table: category.ValidColumn,
+			expense.Table:  expense.ValidColumn,
+			user.Table:     user.ValidColumn,
 		})
 	})
 	return columnCheck(t, c)

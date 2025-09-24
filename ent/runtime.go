@@ -5,6 +5,7 @@ package ent
 import (
 	"expense-tracker/ent/expense"
 	"expense-tracker/ent/schema"
+	"expense-tracker/ent/user"
 	"time"
 )
 
@@ -26,4 +27,14 @@ func init() {
 	expenseDescDate := expenseFields[2].Descriptor()
 	// expense.DefaultDate holds the default value on creation for the date field.
 	expense.DefaultDate = expenseDescDate.Default.(func() time.Time)
+	userFields := schema.User{}.Fields()
+	_ = userFields
+	// userDescName is the schema descriptor for name field.
+	userDescName := userFields[0].Descriptor()
+	// user.DefaultName holds the default value on creation for the name field.
+	user.DefaultName = userDescName.Default.(string)
+	// userDescCurrency is the schema descriptor for currency field.
+	userDescCurrency := userFields[1].Descriptor()
+	// user.DefaultCurrency holds the default value on creation for the currency field.
+	user.DefaultCurrency = userDescCurrency.Default.(string)
 }

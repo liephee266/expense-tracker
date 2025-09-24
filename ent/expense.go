@@ -3,7 +3,9 @@
 package ent
 
 import (
+	"expense-tracker/ent/category"
 	"expense-tracker/ent/expense"
+	"expense-tracker/ent/user"
 	"fmt"
 	"strings"
 	"time"
@@ -23,9 +25,45 @@ type Expense struct {
 	Amount float64 `json:"amount,omitempty"`
 	// Date holds the value of the "date" field.
 	Date time.Time `json:"date,omitempty"`
-	// Category holds the value of the "category" field.
-	Category     string `json:"category,omitempty"`
-	selectValues sql.SelectValues
+	// Edges holds the relations/edges for other nodes in the graph.
+	// The values are being populated by the ExpenseQuery when eager-loading is set.
+	Edges            ExpenseEdges `json:"edges"`
+	expense_category *int
+	expense_user     *int
+	selectValues     sql.SelectValues
+}
+
+// ExpenseEdges holds the relations/edges for other nodes in the graph.
+type ExpenseEdges struct {
+	// Category holds the value of the category edge.
+	Category *Category `json:"category,omitempty"`
+	// User holds the value of the user edge.
+	User *User `json:"user,omitempty"`
+	// loadedTypes holds the information for reporting if a
+	// type was loaded (or requested) in eager-loading or not.
+	loadedTypes [2]bool
+}
+
+// CategoryOrErr returns the Category value or an error if the edge
+// was not loaded in eager-loading, or loaded but was not found.
+func (e ExpenseEdges) CategoryOrErr() (*Category, error) {
+	if e.Category != nil {
+		return e.Category, nil
+	} else if e.loadedTypes[0] {
+		return nil, &NotFoundError{label: category.Label}
+	}
+	return nil, &NotLoadedError{edge: "category"}
+}
+
+// UserOrErr returns the User value or an error if the edge
+// was not loaded in eager-loading, or loaded but was not found.
+func (e ExpenseEdges) UserOrErr() (*User, error) {
+	if e.User != nil {
+		return e.User, nil
+	} else if e.loadedTypes[1] {
+		return nil, &NotFoundError{label: user.Label}
+	}
+	return nil, &NotLoadedError{edge: "user"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -37,10 +75,14 @@ func (*Expense) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullFloat64)
 		case expense.FieldID:
 			values[i] = new(sql.NullInt64)
-		case expense.FieldTitle, expense.FieldCategory:
+		case expense.FieldTitle:
 			values[i] = new(sql.NullString)
 		case expense.FieldDate:
 			values[i] = new(sql.NullTime)
+		case expense.ForeignKeys[0]: // expense_category
+			values[i] = new(sql.NullInt64)
+		case expense.ForeignKeys[1]: // expense_user
+			values[i] = new(sql.NullInt64)
 		default:
 			values[i] = new(sql.UnknownType)
 		}
@@ -80,11 +122,19 @@ func (_m *Expense) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.Date = value.Time
 			}
-		case expense.FieldCategory:
-			if value, ok := values[i].(*sql.NullString); !ok {
-				return fmt.Errorf("unexpected type %T for field category", values[i])
+		case expense.ForeignKeys[0]:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for edge-field expense_category", value)
 			} else if value.Valid {
-				_m.Category = value.String
+				_m.expense_category = new(int)
+				*_m.expense_category = int(value.Int64)
+			}
+		case expense.ForeignKeys[1]:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for edge-field expense_user", value)
+			} else if value.Valid {
+				_m.expense_user = new(int)
+				*_m.expense_user = int(value.Int64)
 			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
@@ -97,6 +147,16 @@ func (_m *Expense) assignValues(columns []string, values []any) error {
 // This includes values selected through modifiers, order, etc.
 func (_m *Expense) Value(name string) (ent.Value, error) {
 	return _m.selectValues.Get(name)
+}
+
+// QueryCategory queries the "category" edge of the Expense entity.
+func (_m *Expense) QueryCategory() *CategoryQuery {
+	return NewExpenseClient(_m.config).QueryCategory(_m)
+}
+
+// QueryUser queries the "user" edge of the Expense entity.
+func (_m *Expense) QueryUser() *UserQuery {
+	return NewExpenseClient(_m.config).QueryUser(_m)
 }
 
 // Update returns a builder for updating this Expense.
@@ -130,9 +190,6 @@ func (_m *Expense) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("date=")
 	builder.WriteString(_m.Date.Format(time.ANSIC))
-	builder.WriteString(", ")
-	builder.WriteString("category=")
-	builder.WriteString(_m.Category)
 	builder.WriteByte(')')
 	return builder.String()
 }

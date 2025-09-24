@@ -5,7 +5,9 @@ package ent
 import (
 	"context"
 	"errors"
+	"expense-tracker/ent/category"
 	"expense-tracker/ent/expense"
+	"expense-tracker/ent/user"
 	"fmt"
 	"time"
 
@@ -46,18 +48,42 @@ func (_c *ExpenseCreate) SetNillableDate(v *time.Time) *ExpenseCreate {
 	return _c
 }
 
-// SetCategory sets the "category" field.
-func (_c *ExpenseCreate) SetCategory(v string) *ExpenseCreate {
-	_c.mutation.SetCategory(v)
+// SetCategoryID sets the "category" edge to the Category entity by ID.
+func (_c *ExpenseCreate) SetCategoryID(id int) *ExpenseCreate {
+	_c.mutation.SetCategoryID(id)
 	return _c
 }
 
-// SetNillableCategory sets the "category" field if the given value is not nil.
-func (_c *ExpenseCreate) SetNillableCategory(v *string) *ExpenseCreate {
-	if v != nil {
-		_c.SetCategory(*v)
+// SetNillableCategoryID sets the "category" edge to the Category entity by ID if the given value is not nil.
+func (_c *ExpenseCreate) SetNillableCategoryID(id *int) *ExpenseCreate {
+	if id != nil {
+		_c = _c.SetCategoryID(*id)
 	}
 	return _c
+}
+
+// SetCategory sets the "category" edge to the Category entity.
+func (_c *ExpenseCreate) SetCategory(v *Category) *ExpenseCreate {
+	return _c.SetCategoryID(v.ID)
+}
+
+// SetUserID sets the "user" edge to the User entity by ID.
+func (_c *ExpenseCreate) SetUserID(id int) *ExpenseCreate {
+	_c.mutation.SetUserID(id)
+	return _c
+}
+
+// SetNillableUserID sets the "user" edge to the User entity by ID if the given value is not nil.
+func (_c *ExpenseCreate) SetNillableUserID(id *int) *ExpenseCreate {
+	if id != nil {
+		_c = _c.SetUserID(*id)
+	}
+	return _c
+}
+
+// SetUser sets the "user" edge to the User entity.
+func (_c *ExpenseCreate) SetUser(v *User) *ExpenseCreate {
+	return _c.SetUserID(v.ID)
 }
 
 // Mutation returns the ExpenseMutation object of the builder.
@@ -160,9 +186,39 @@ func (_c *ExpenseCreate) createSpec() (*Expense, *sqlgraph.CreateSpec) {
 		_spec.SetField(expense.FieldDate, field.TypeTime, value)
 		_node.Date = value
 	}
-	if value, ok := _c.mutation.Category(); ok {
-		_spec.SetField(expense.FieldCategory, field.TypeString, value)
-		_node.Category = value
+	if nodes := _c.mutation.CategoryIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: false,
+			Table:   expense.CategoryTable,
+			Columns: []string{expense.CategoryColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(category.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_node.expense_category = &nodes[0]
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.UserIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: false,
+			Table:   expense.UserTable,
+			Columns: []string{expense.UserColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_node.expense_user = &nodes[0]
+		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec
 }

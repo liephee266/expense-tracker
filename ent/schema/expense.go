@@ -5,6 +5,7 @@ import (
     "entgo.io/ent"
     "entgo.io/ent/schema/field"
     "time"
+    "entgo.io/ent/schema/edge"
 )
 
 // Expense définit un schéma de dépense
@@ -17,6 +18,12 @@ func (Expense) Fields() []ent.Field {
         field.String("title").NotEmpty(),
         field.Float("amount").Positive(),
         field.Time("date").Default(time.Now),
-        field.String("category").Optional(),
+    }
+}
+
+func (Expense) Edges() []ent.Edge {
+    return []ent.Edge{
+        edge.To("category", Category.Type).Unique(),
+        edge.To("user", User.Type).Unique(),
     }
 }

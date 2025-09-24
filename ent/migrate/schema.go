@@ -8,25 +8,100 @@ import (
 )
 
 var (
+	// BudgetsColumns holds the columns for the "budgets" table.
+	BudgetsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "amount", Type: field.TypeFloat64},
+		{Name: "start_date", Type: field.TypeTime},
+		{Name: "end_date", Type: field.TypeTime, Nullable: true},
+		{Name: "budget_category", Type: field.TypeInt, Nullable: true},
+		{Name: "budget_user", Type: field.TypeInt, Nullable: true},
+	}
+	// BudgetsTable holds the schema information for the "budgets" table.
+	BudgetsTable = &schema.Table{
+		Name:       "budgets",
+		Columns:    BudgetsColumns,
+		PrimaryKey: []*schema.Column{BudgetsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "budgets_categories_category",
+				Columns:    []*schema.Column{BudgetsColumns[4]},
+				RefColumns: []*schema.Column{CategoriesColumns[0]},
+				OnDelete:   schema.SetNull,
+			},
+			{
+				Symbol:     "budgets_users_user",
+				Columns:    []*schema.Column{BudgetsColumns[5]},
+				RefColumns: []*schema.Column{UsersColumns[0]},
+				OnDelete:   schema.SetNull,
+			},
+		},
+	}
+	// CategoriesColumns holds the columns for the "categories" table.
+	CategoriesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "name", Type: field.TypeString},
+		{Name: "icon", Type: field.TypeString, Nullable: true},
+	}
+	// CategoriesTable holds the schema information for the "categories" table.
+	CategoriesTable = &schema.Table{
+		Name:       "categories",
+		Columns:    CategoriesColumns,
+		PrimaryKey: []*schema.Column{CategoriesColumns[0]},
+	}
 	// ExpensesColumns holds the columns for the "expenses" table.
 	ExpensesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
 		{Name: "title", Type: field.TypeString},
 		{Name: "amount", Type: field.TypeFloat64},
 		{Name: "date", Type: field.TypeTime},
-		{Name: "category", Type: field.TypeString, Nullable: true},
+		{Name: "expense_category", Type: field.TypeInt, Nullable: true},
+		{Name: "expense_user", Type: field.TypeInt, Nullable: true},
 	}
 	// ExpensesTable holds the schema information for the "expenses" table.
 	ExpensesTable = &schema.Table{
 		Name:       "expenses",
 		Columns:    ExpensesColumns,
 		PrimaryKey: []*schema.Column{ExpensesColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "expenses_categories_category",
+				Columns:    []*schema.Column{ExpensesColumns[4]},
+				RefColumns: []*schema.Column{CategoriesColumns[0]},
+				OnDelete:   schema.SetNull,
+			},
+			{
+				Symbol:     "expenses_users_user",
+				Columns:    []*schema.Column{ExpensesColumns[5]},
+				RefColumns: []*schema.Column{UsersColumns[0]},
+				OnDelete:   schema.SetNull,
+			},
+		},
+	}
+	// UsersColumns holds the columns for the "users" table.
+	UsersColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "name", Type: field.TypeString, Default: "Utilisateur"},
+		{Name: "currency", Type: field.TypeString, Default: "€"},
+	}
+	// UsersTable holds the schema information for the "users" table.
+	UsersTable = &schema.Table{
+		Name:       "users",
+		Columns:    UsersColumns,
+		PrimaryKey: []*schema.Column{UsersColumns[0]},
 	}
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
+		BudgetsTable,
+		CategoriesTable,
 		ExpensesTable,
+		UsersTable,
 	}
 )
 
 func init() {
+	BudgetsTable.ForeignKeys[0].RefTable = CategoriesTable
+	BudgetsTable.ForeignKeys[1].RefTable = UsersTable
+	ExpensesTable.ForeignKeys[0].RefTable = CategoriesTable
+	ExpensesTable.ForeignKeys[1].RefTable = UsersTable
 }

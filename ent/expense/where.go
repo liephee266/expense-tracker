@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
 )
 
 // ID filters vertices based on their ID field.
@@ -67,11 +68,6 @@ func Amount(v float64) predicate.Expense {
 // Date applies equality check predicate on the "date" field. It's identical to DateEQ.
 func Date(v time.Time) predicate.Expense {
 	return predicate.Expense(sql.FieldEQ(FieldDate, v))
-}
-
-// Category applies equality check predicate on the "category" field. It's identical to CategoryEQ.
-func Category(v string) predicate.Expense {
-	return predicate.Expense(sql.FieldEQ(FieldCategory, v))
 }
 
 // TitleEQ applies the EQ predicate on the "title" field.
@@ -219,79 +215,50 @@ func DateLTE(v time.Time) predicate.Expense {
 	return predicate.Expense(sql.FieldLTE(FieldDate, v))
 }
 
-// CategoryEQ applies the EQ predicate on the "category" field.
-func CategoryEQ(v string) predicate.Expense {
-	return predicate.Expense(sql.FieldEQ(FieldCategory, v))
+// HasCategory applies the HasEdge predicate on the "category" edge.
+func HasCategory() predicate.Expense {
+	return predicate.Expense(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, false, CategoryTable, CategoryColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
 }
 
-// CategoryNEQ applies the NEQ predicate on the "category" field.
-func CategoryNEQ(v string) predicate.Expense {
-	return predicate.Expense(sql.FieldNEQ(FieldCategory, v))
+// HasCategoryWith applies the HasEdge predicate on the "category" edge with a given conditions (other predicates).
+func HasCategoryWith(preds ...predicate.Category) predicate.Expense {
+	return predicate.Expense(func(s *sql.Selector) {
+		step := newCategoryStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
 }
 
-// CategoryIn applies the In predicate on the "category" field.
-func CategoryIn(vs ...string) predicate.Expense {
-	return predicate.Expense(sql.FieldIn(FieldCategory, vs...))
+// HasUser applies the HasEdge predicate on the "user" edge.
+func HasUser() predicate.Expense {
+	return predicate.Expense(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, false, UserTable, UserColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
 }
 
-// CategoryNotIn applies the NotIn predicate on the "category" field.
-func CategoryNotIn(vs ...string) predicate.Expense {
-	return predicate.Expense(sql.FieldNotIn(FieldCategory, vs...))
-}
-
-// CategoryGT applies the GT predicate on the "category" field.
-func CategoryGT(v string) predicate.Expense {
-	return predicate.Expense(sql.FieldGT(FieldCategory, v))
-}
-
-// CategoryGTE applies the GTE predicate on the "category" field.
-func CategoryGTE(v string) predicate.Expense {
-	return predicate.Expense(sql.FieldGTE(FieldCategory, v))
-}
-
-// CategoryLT applies the LT predicate on the "category" field.
-func CategoryLT(v string) predicate.Expense {
-	return predicate.Expense(sql.FieldLT(FieldCategory, v))
-}
-
-// CategoryLTE applies the LTE predicate on the "category" field.
-func CategoryLTE(v string) predicate.Expense {
-	return predicate.Expense(sql.FieldLTE(FieldCategory, v))
-}
-
-// CategoryContains applies the Contains predicate on the "category" field.
-func CategoryContains(v string) predicate.Expense {
-	return predicate.Expense(sql.FieldContains(FieldCategory, v))
-}
-
-// CategoryHasPrefix applies the HasPrefix predicate on the "category" field.
-func CategoryHasPrefix(v string) predicate.Expense {
-	return predicate.Expense(sql.FieldHasPrefix(FieldCategory, v))
-}
-
-// CategoryHasSuffix applies the HasSuffix predicate on the "category" field.
-func CategoryHasSuffix(v string) predicate.Expense {
-	return predicate.Expense(sql.FieldHasSuffix(FieldCategory, v))
-}
-
-// CategoryIsNil applies the IsNil predicate on the "category" field.
-func CategoryIsNil() predicate.Expense {
-	return predicate.Expense(sql.FieldIsNull(FieldCategory))
-}
-
-// CategoryNotNil applies the NotNil predicate on the "category" field.
-func CategoryNotNil() predicate.Expense {
-	return predicate.Expense(sql.FieldNotNull(FieldCategory))
-}
-
-// CategoryEqualFold applies the EqualFold predicate on the "category" field.
-func CategoryEqualFold(v string) predicate.Expense {
-	return predicate.Expense(sql.FieldEqualFold(FieldCategory, v))
-}
-
-// CategoryContainsFold applies the ContainsFold predicate on the "category" field.
-func CategoryContainsFold(v string) predicate.Expense {
-	return predicate.Expense(sql.FieldContainsFold(FieldCategory, v))
+// HasUserWith applies the HasEdge predicate on the "user" edge with a given conditions (other predicates).
+func HasUserWith(preds ...predicate.User) predicate.Expense {
+	return predicate.Expense(func(s *sql.Selector) {
+		step := newUserStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
 }
 
 // And groups predicates with the AND operator between them.

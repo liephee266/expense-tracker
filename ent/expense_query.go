@@ -4,8 +4,10 @@ package ent
 
 import (
 	"context"
+	"expense-tracker/ent/category"
 	"expense-tracker/ent/expense"
 	"expense-tracker/ent/predicate"
+	"expense-tracker/ent/user"
 	"fmt"
 	"math"
 
@@ -18,10 +20,13 @@ import (
 // ExpenseQuery is the builder for querying Expense entities.
 type ExpenseQuery struct {
 	config
-	ctx        *QueryContext
-	order      []expense.OrderOption
-	inters     []Interceptor
-	predicates []predicate.Expense
+	ctx          *QueryContext
+	order        []expense.OrderOption
+	inters       []Interceptor
+	predicates   []predicate.Expense
+	withCategory *CategoryQuery
+	withUser     *UserQuery
+	withFKs      bool
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -56,6 +61,50 @@ func (_q *ExpenseQuery) Unique(unique bool) *ExpenseQuery {
 func (_q *ExpenseQuery) Order(o ...expense.OrderOption) *ExpenseQuery {
 	_q.order = append(_q.order, o...)
 	return _q
+}
+
+// QueryCategory chains the current query on the "category" edge.
+func (_q *ExpenseQuery) QueryCategory() *CategoryQuery {
+	query := (&CategoryClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(expense.Table, expense.FieldID, selector),
+			sqlgraph.To(category.Table, category.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, false, expense.CategoryTable, expense.CategoryColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryUser chains the current query on the "user" edge.
+func (_q *ExpenseQuery) QueryUser() *UserQuery {
+	query := (&UserClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(expense.Table, expense.FieldID, selector),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, false, expense.UserTable, expense.UserColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
 }
 
 // First returns the first Expense entity from the query.
@@ -245,15 +294,39 @@ func (_q *ExpenseQuery) Clone() *ExpenseQuery {
 		return nil
 	}
 	return &ExpenseQuery{
-		config:     _q.config,
-		ctx:        _q.ctx.Clone(),
-		order:      append([]expense.OrderOption{}, _q.order...),
-		inters:     append([]Interceptor{}, _q.inters...),
-		predicates: append([]predicate.Expense{}, _q.predicates...),
+		config:       _q.config,
+		ctx:          _q.ctx.Clone(),
+		order:        append([]expense.OrderOption{}, _q.order...),
+		inters:       append([]Interceptor{}, _q.inters...),
+		predicates:   append([]predicate.Expense{}, _q.predicates...),
+		withCategory: _q.withCategory.Clone(),
+		withUser:     _q.withUser.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
 	}
+}
+
+// WithCategory tells the query-builder to eager-load the nodes that are connected to
+// the "category" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *ExpenseQuery) WithCategory(opts ...func(*CategoryQuery)) *ExpenseQuery {
+	query := (&CategoryClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withCategory = query
+	return _q
+}
+
+// WithUser tells the query-builder to eager-load the nodes that are connected to
+// the "user" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *ExpenseQuery) WithUser(opts ...func(*UserQuery)) *ExpenseQuery {
+	query := (&UserClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withUser = query
+	return _q
 }
 
 // GroupBy is used to group vertices by one or more fields/columns.
@@ -332,15 +405,27 @@ func (_q *ExpenseQuery) prepareQuery(ctx context.Context) error {
 
 func (_q *ExpenseQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Expense, error) {
 	var (
-		nodes = []*Expense{}
-		_spec = _q.querySpec()
+		nodes       = []*Expense{}
+		withFKs     = _q.withFKs
+		_spec       = _q.querySpec()
+		loadedTypes = [2]bool{
+			_q.withCategory != nil,
+			_q.withUser != nil,
+		}
 	)
+	if _q.withCategory != nil || _q.withUser != nil {
+		withFKs = true
+	}
+	if withFKs {
+		_spec.Node.Columns = append(_spec.Node.Columns, expense.ForeignKeys...)
+	}
 	_spec.ScanValues = func(columns []string) ([]any, error) {
 		return (*Expense).scanValues(nil, columns)
 	}
 	_spec.Assign = func(columns []string, values []any) error {
 		node := &Expense{config: _q.config}
 		nodes = append(nodes, node)
+		node.Edges.loadedTypes = loadedTypes
 		return node.assignValues(columns, values)
 	}
 	for i := range hooks {
@@ -352,7 +437,84 @@ func (_q *ExpenseQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Expe
 	if len(nodes) == 0 {
 		return nodes, nil
 	}
+	if query := _q.withCategory; query != nil {
+		if err := _q.loadCategory(ctx, query, nodes, nil,
+			func(n *Expense, e *Category) { n.Edges.Category = e }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withUser; query != nil {
+		if err := _q.loadUser(ctx, query, nodes, nil,
+			func(n *Expense, e *User) { n.Edges.User = e }); err != nil {
+			return nil, err
+		}
+	}
 	return nodes, nil
+}
+
+func (_q *ExpenseQuery) loadCategory(ctx context.Context, query *CategoryQuery, nodes []*Expense, init func(*Expense), assign func(*Expense, *Category)) error {
+	ids := make([]int, 0, len(nodes))
+	nodeids := make(map[int][]*Expense)
+	for i := range nodes {
+		if nodes[i].expense_category == nil {
+			continue
+		}
+		fk := *nodes[i].expense_category
+		if _, ok := nodeids[fk]; !ok {
+			ids = append(ids, fk)
+		}
+		nodeids[fk] = append(nodeids[fk], nodes[i])
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	query.Where(category.IDIn(ids...))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		nodes, ok := nodeids[n.ID]
+		if !ok {
+			return fmt.Errorf(`unexpected foreign-key "expense_category" returned %v`, n.ID)
+		}
+		for i := range nodes {
+			assign(nodes[i], n)
+		}
+	}
+	return nil
+}
+func (_q *ExpenseQuery) loadUser(ctx context.Context, query *UserQuery, nodes []*Expense, init func(*Expense), assign func(*Expense, *User)) error {
+	ids := make([]int, 0, len(nodes))
+	nodeids := make(map[int][]*Expense)
+	for i := range nodes {
+		if nodes[i].expense_user == nil {
+			continue
+		}
+		fk := *nodes[i].expense_user
+		if _, ok := nodeids[fk]; !ok {
+			ids = append(ids, fk)
+		}
+		nodeids[fk] = append(nodeids[fk], nodes[i])
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	query.Where(user.IDIn(ids...))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		nodes, ok := nodeids[n.ID]
+		if !ok {
+			return fmt.Errorf(`unexpected foreign-key "expense_user" returned %v`, n.ID)
+		}
+		for i := range nodes {
+			assign(nodes[i], n)
+		}
+	}
+	return nil
 }
 
 func (_q *ExpenseQuery) sqlCount(ctx context.Context) (int, error) {

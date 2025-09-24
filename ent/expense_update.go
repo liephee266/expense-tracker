@@ -5,8 +5,10 @@ package ent
 import (
 	"context"
 	"errors"
+	"expense-tracker/ent/category"
 	"expense-tracker/ent/expense"
 	"expense-tracker/ent/predicate"
+	"expense-tracker/ent/user"
 	"fmt"
 	"time"
 
@@ -77,29 +79,59 @@ func (_u *ExpenseUpdate) SetNillableDate(v *time.Time) *ExpenseUpdate {
 	return _u
 }
 
-// SetCategory sets the "category" field.
-func (_u *ExpenseUpdate) SetCategory(v string) *ExpenseUpdate {
-	_u.mutation.SetCategory(v)
+// SetCategoryID sets the "category" edge to the Category entity by ID.
+func (_u *ExpenseUpdate) SetCategoryID(id int) *ExpenseUpdate {
+	_u.mutation.SetCategoryID(id)
 	return _u
 }
 
-// SetNillableCategory sets the "category" field if the given value is not nil.
-func (_u *ExpenseUpdate) SetNillableCategory(v *string) *ExpenseUpdate {
-	if v != nil {
-		_u.SetCategory(*v)
+// SetNillableCategoryID sets the "category" edge to the Category entity by ID if the given value is not nil.
+func (_u *ExpenseUpdate) SetNillableCategoryID(id *int) *ExpenseUpdate {
+	if id != nil {
+		_u = _u.SetCategoryID(*id)
 	}
 	return _u
 }
 
-// ClearCategory clears the value of the "category" field.
-func (_u *ExpenseUpdate) ClearCategory() *ExpenseUpdate {
-	_u.mutation.ClearCategory()
+// SetCategory sets the "category" edge to the Category entity.
+func (_u *ExpenseUpdate) SetCategory(v *Category) *ExpenseUpdate {
+	return _u.SetCategoryID(v.ID)
+}
+
+// SetUserID sets the "user" edge to the User entity by ID.
+func (_u *ExpenseUpdate) SetUserID(id int) *ExpenseUpdate {
+	_u.mutation.SetUserID(id)
 	return _u
+}
+
+// SetNillableUserID sets the "user" edge to the User entity by ID if the given value is not nil.
+func (_u *ExpenseUpdate) SetNillableUserID(id *int) *ExpenseUpdate {
+	if id != nil {
+		_u = _u.SetUserID(*id)
+	}
+	return _u
+}
+
+// SetUser sets the "user" edge to the User entity.
+func (_u *ExpenseUpdate) SetUser(v *User) *ExpenseUpdate {
+	return _u.SetUserID(v.ID)
 }
 
 // Mutation returns the ExpenseMutation object of the builder.
 func (_u *ExpenseUpdate) Mutation() *ExpenseMutation {
 	return _u.mutation
+}
+
+// ClearCategory clears the "category" edge to the Category entity.
+func (_u *ExpenseUpdate) ClearCategory() *ExpenseUpdate {
+	_u.mutation.ClearCategory()
+	return _u
+}
+
+// ClearUser clears the "user" edge to the User entity.
+func (_u *ExpenseUpdate) ClearUser() *ExpenseUpdate {
+	_u.mutation.ClearUser()
+	return _u
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -168,11 +200,63 @@ func (_u *ExpenseUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.Date(); ok {
 		_spec.SetField(expense.FieldDate, field.TypeTime, value)
 	}
-	if value, ok := _u.mutation.Category(); ok {
-		_spec.SetField(expense.FieldCategory, field.TypeString, value)
-	}
 	if _u.mutation.CategoryCleared() {
-		_spec.ClearField(expense.FieldCategory, field.TypeString)
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: false,
+			Table:   expense.CategoryTable,
+			Columns: []string{expense.CategoryColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(category.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.CategoryIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: false,
+			Table:   expense.CategoryTable,
+			Columns: []string{expense.CategoryColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(category.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.UserCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: false,
+			Table:   expense.UserTable,
+			Columns: []string{expense.UserColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.UserIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: false,
+			Table:   expense.UserTable,
+			Columns: []string{expense.UserColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
@@ -243,29 +327,59 @@ func (_u *ExpenseUpdateOne) SetNillableDate(v *time.Time) *ExpenseUpdateOne {
 	return _u
 }
 
-// SetCategory sets the "category" field.
-func (_u *ExpenseUpdateOne) SetCategory(v string) *ExpenseUpdateOne {
-	_u.mutation.SetCategory(v)
+// SetCategoryID sets the "category" edge to the Category entity by ID.
+func (_u *ExpenseUpdateOne) SetCategoryID(id int) *ExpenseUpdateOne {
+	_u.mutation.SetCategoryID(id)
 	return _u
 }
 
-// SetNillableCategory sets the "category" field if the given value is not nil.
-func (_u *ExpenseUpdateOne) SetNillableCategory(v *string) *ExpenseUpdateOne {
-	if v != nil {
-		_u.SetCategory(*v)
+// SetNillableCategoryID sets the "category" edge to the Category entity by ID if the given value is not nil.
+func (_u *ExpenseUpdateOne) SetNillableCategoryID(id *int) *ExpenseUpdateOne {
+	if id != nil {
+		_u = _u.SetCategoryID(*id)
 	}
 	return _u
 }
 
-// ClearCategory clears the value of the "category" field.
-func (_u *ExpenseUpdateOne) ClearCategory() *ExpenseUpdateOne {
-	_u.mutation.ClearCategory()
+// SetCategory sets the "category" edge to the Category entity.
+func (_u *ExpenseUpdateOne) SetCategory(v *Category) *ExpenseUpdateOne {
+	return _u.SetCategoryID(v.ID)
+}
+
+// SetUserID sets the "user" edge to the User entity by ID.
+func (_u *ExpenseUpdateOne) SetUserID(id int) *ExpenseUpdateOne {
+	_u.mutation.SetUserID(id)
 	return _u
+}
+
+// SetNillableUserID sets the "user" edge to the User entity by ID if the given value is not nil.
+func (_u *ExpenseUpdateOne) SetNillableUserID(id *int) *ExpenseUpdateOne {
+	if id != nil {
+		_u = _u.SetUserID(*id)
+	}
+	return _u
+}
+
+// SetUser sets the "user" edge to the User entity.
+func (_u *ExpenseUpdateOne) SetUser(v *User) *ExpenseUpdateOne {
+	return _u.SetUserID(v.ID)
 }
 
 // Mutation returns the ExpenseMutation object of the builder.
 func (_u *ExpenseUpdateOne) Mutation() *ExpenseMutation {
 	return _u.mutation
+}
+
+// ClearCategory clears the "category" edge to the Category entity.
+func (_u *ExpenseUpdateOne) ClearCategory() *ExpenseUpdateOne {
+	_u.mutation.ClearCategory()
+	return _u
+}
+
+// ClearUser clears the "user" edge to the User entity.
+func (_u *ExpenseUpdateOne) ClearUser() *ExpenseUpdateOne {
+	_u.mutation.ClearUser()
+	return _u
 }
 
 // Where appends a list predicates to the ExpenseUpdate builder.
@@ -364,11 +478,63 @@ func (_u *ExpenseUpdateOne) sqlSave(ctx context.Context) (_node *Expense, err er
 	if value, ok := _u.mutation.Date(); ok {
 		_spec.SetField(expense.FieldDate, field.TypeTime, value)
 	}
-	if value, ok := _u.mutation.Category(); ok {
-		_spec.SetField(expense.FieldCategory, field.TypeString, value)
-	}
 	if _u.mutation.CategoryCleared() {
-		_spec.ClearField(expense.FieldCategory, field.TypeString)
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: false,
+			Table:   expense.CategoryTable,
+			Columns: []string{expense.CategoryColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(category.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.CategoryIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: false,
+			Table:   expense.CategoryTable,
+			Columns: []string{expense.CategoryColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(category.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.UserCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: false,
+			Table:   expense.UserTable,
+			Columns: []string{expense.UserColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.UserIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: false,
+			Table:   expense.UserTable,
+			Columns: []string{expense.UserColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	_node = &Expense{config: _u.config}
 	_spec.Assign = _node.assignValues

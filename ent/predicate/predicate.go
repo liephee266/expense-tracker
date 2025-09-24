@@ -6,5 +6,14 @@ import (
 	"entgo.io/ent/dialect/sql"
 )
 
+// Budget is the predicate function for budget builders.
+type Budget func(*sql.Selector)
+
+// Category is the predicate function for category builders.
+type Category func(*sql.Selector)
+
 // Expense is the predicate function for expense builders.
 type Expense func(*sql.Selector)
+
+// User is the predicate function for user builders.
+type User func(*sql.Selector)
